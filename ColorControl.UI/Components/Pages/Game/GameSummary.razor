@@ -68,6 +68,10 @@ else
 									{
 										<span class="ms-2 badge text-bg-warning" title="Show in Quick Access">QA</span>
 									}
+									@if (!preset.PathExists)
+									{
+										<span class="ms-2 badge text-bg-danger" title="@($"Path '{preset.Path}' is not found")">Not found</span>
+									}
 								</h5>
 							</div>
 							<span class="d-none d-lg-block">

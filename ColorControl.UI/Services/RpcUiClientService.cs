@@ -7,83 +7,93 @@ namespace ColorControl.UI.Services;
 
 public class RpcUiClientOptions
 {
-	public int Timeout { get; set; } = PipeUtils.DefaultTimeout;
+    public int Timeout { get; set; } = PipeUtils.DefaultTimeout;
 }
 
 public class RpcUiClientService(NotificationService notificationService)
 {
-	public string? LastErrorMessage { get; private set; }
+    public string? LastErrorMessage { get; private set; }
 
-	public async Task<T> CallAsync<T>(string serviceName, string method, params object?[] arguments)
-	{
-		var rpcMessage = new SvcRpcMessage
-		{
-			ServiceName = serviceName,
-			MethodName = method,
-			Arguments = arguments
-		};
+    public async Task<T> CallAsync<T>(string serviceName, string method, params object?[] arguments)
+    {
+        var rpcMessage = new SvcRpcMessage
+        {
+            ServiceName = serviceName,
+            MethodName = method,
+            Arguments = arguments
+        };
 
-		var timeout = Debugger.IsAttached ? 60000 : PipeUtils.DefaultTimeout;
+        var timeout = Debugger.IsAttached ? 60000 : PipeUtils.DefaultTimeout;
 
-		return await SendRpcMessageAsync<T>(rpcMessage, timeout, pipeName: PipeUtils.MainPipe);
-	}
+        return await SendRpcMessageAsync<T>(rpcMessage, timeout, pipeName: PipeUtils.MainPipe);
+    }
 
-	public async Task<T> CallWithOptionsAsync<T>(string serviceName, string method, RpcUiClientOptions options, params object?[] arguments)
-	{
-		var rpcMessage = new SvcRpcMessage
-		{
-			ServiceName = serviceName,
-			MethodName = method,
-			Arguments = arguments
-		};
+    public async Task<bool> CallGenericBoolResultAsync(string serviceName, string method, params object?[] arguments)
+    {
+        var rpcMessage = new SvcRpcMessage
+        {
+            ServiceName = serviceName,
+            MethodName = method,
+            Arguments = arguments
+        };
 
-		return await SendRpcMessageAsync<T>(rpcMessage, options.Timeout, pipeName: PipeUtils.MainPipe);
-	}
+        var timeout = Debugger.IsAttached ? 60000 : PipeUtils.DefaultTimeout;
 
-	public T Call<T>(string serviceName, string method, params object[] arguments)
-	{
-		var rpcMessage = new SvcRpcMessage
-		{
-			ServiceName = serviceName,
-			MethodName = method,
-			Arguments = arguments
-		};
+        var result = await SendRpcMessageAsync<GenericBoolResult>(rpcMessage, timeout, pipeName: PipeUtils.MainPipe);
 
-		var timeout = Debugger.IsAttached ? 60000 : 2000;
+        if (result?.Result == true)
+        {
+            return true;
+        }
 
-		return PipeUtils.SendRpcMessage<T>(rpcMessage, timeout, pipeName: PipeUtils.MainPipe);
-	}
+        if (result?.ErrorMessages.Count > 0)
+        {
+            await notificationService.SendNotificationDirect(new NotificationDto(result.ErrorMessages.First(), Constants.Danger));
+        }
 
-	private async Task<T> SendRpcMessageAsync<T>(SvcRpcMessage message, int timeout = PipeUtils.DefaultTimeout, string pipeName = PipeUtils.ServicePipe)
-	{
-		var messageJson = JsonConvert.SerializeObject(message);
+        return false;
+    }
 
-		var resultJson = await PipeUtils.SendMessageAsync(messageJson, timeout, pipeName);
+    public async Task<T> CallWithOptionsAsync<T>(string serviceName, string method, RpcUiClientOptions options, params object?[] arguments)
+    {
+        var rpcMessage = new SvcRpcMessage
+        {
+            ServiceName = serviceName,
+            MethodName = method,
+            Arguments = arguments
+        };
 
-		if (resultJson == null)
-		{
-			notificationService.SendNotification(new NotificationDto("Unknown communication error", Constants.Danger));
+        return await SendRpcMessageAsync<T>(rpcMessage, options.Timeout, pipeName: PipeUtils.MainPipe);
+    }
 
-			return default;
-		}
+    private async Task<T> SendRpcMessageAsync<T>(SvcRpcMessage message, int timeout = PipeUtils.DefaultTimeout, string pipeName = PipeUtils.ServicePipe)
+    {
+        var messageJson = JsonConvert.SerializeObject(message);
 
-		var resultMessage = JsonConvert.DeserializeObject<SvcResultMessage>(resultJson);
+        var resultJson = await PipeUtils.SendMessageAsync(messageJson, timeout, pipeName);
 
-		if (resultMessage?.Data == null)
-		{
-			LastErrorMessage = resultMessage?.ErrorMessage ?? "Unknown communication error";
+        if (resultJson == null)
+        {
+            notificationService.SendNotification(new NotificationDto("Unknown communication error", Constants.Danger));
 
-			await notificationService.SendNotificationDirect(new NotificationDto(LastErrorMessage, Constants.Danger));
+            return default;
+        }
 
-			return default;
-		}
+        var resultMessage = JsonConvert.DeserializeObject<SvcResultMessage>(resultJson);
 
-		LastErrorMessage = null;
+        if (resultMessage?.Data == null)
+        {
+            LastErrorMessage = resultMessage?.ErrorMessage ?? "Unknown communication error";
 
-		var result = JsonConvert.DeserializeObject<T>(resultMessage.Data);
+            await notificationService.SendNotificationDirect(new NotificationDto(LastErrorMessage, Constants.Danger));
 
-		return result;
-	}
+            return default;
+        }
 
+        LastErrorMessage = null;
 
+        var result = JsonConvert.DeserializeObject<T>(resultMessage.Data);
+
+        return result;
+    }
 }

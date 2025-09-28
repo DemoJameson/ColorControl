@@ -25,6 +25,7 @@ namespace ColorControl.Svc
         private readonly WinApiAdminService _winApiAdminService;
         private readonly WolService _wolService;
         private static string LgConfigFile = "LgConfig.json";
+        public bool IsRunning { get; private set; }
 
         public string PipeName { get; set; } = PipeUtils.ServicePipe;
 
@@ -56,6 +57,8 @@ namespace ColorControl.Svc
                 ps.AddAccessRule(new PipeAccessRule(securityIdentifier, PipeAccessRights.ReadWrite, AccessControlType.Allow));
 
                 Logger.Debug($"EXECUTING IN BACKGROUND: {PipeName}");
+
+                IsRunning = true;
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
@@ -113,6 +116,7 @@ namespace ColorControl.Svc
                 // recovery options, we need to terminate the process with a non-zero exit code.
                 //Environment.Exit(1);
             }
+            IsRunning = false;
         }
 
         private async Task<SvcResultMessage> HandleMessageAsync(string json)

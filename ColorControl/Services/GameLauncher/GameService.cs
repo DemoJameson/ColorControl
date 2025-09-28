@@ -304,6 +304,16 @@ namespace ColorControl.Services.GameLauncher
             return true;
         }
 
+        public override List<GamePreset> GetPresets()
+        {
+            _presets.ForEach(p =>
+            {
+                p.PathExists = p.Path?.Contains(":\\") != true || File.Exists(p.Path);
+            });
+
+            return _presets;
+        }
+
         public bool UpdatePreset(GamePreset specPreset)
         {
             ValidatePreset(specPreset);

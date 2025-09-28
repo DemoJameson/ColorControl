@@ -386,6 +386,6 @@ Currently ColorControl is {(_winApiService.IsAdministrator() ? "" : "not ")}runn
             return;
         }
 
-        _config.UiType = (UiType)cbxUiType.SelectedIndex;
+        _optionsService.SetUiType((UiType)cbxUiType.SelectedIndex);
     }
 }

@@ -72,6 +72,42 @@ namespace ColorControl.Services.AMD
             base.InstallEventHandlers();
 
             SetShortcuts(SHORTCUTID_AMDQA, Config.QuickAccessShortcut);
+
+            var _ = ApplyAmdPresetOnStartup();
+        }
+
+        private async Task ApplyAmdPresetOnStartup(int attempts = 5)
+        {
+            var startUpParams = _globalContext.StartUpParams;
+            var presetIdOrName = !string.IsNullOrEmpty(startUpParams.AmdPresetIdOrName) ? startUpParams.AmdPresetIdOrName : _globalContext.Config.AmdPresetId_ApplyOnStartup.ToString();
+
+            if (!string.IsNullOrEmpty(presetIdOrName))
+            {
+                var preset = GetPresetByIdOrName(presetIdOrName);
+                if (preset == null)
+                {
+                    if (string.IsNullOrEmpty(startUpParams.AmdPresetIdOrName))
+                    {
+                        _globalContext.Config.AmdPresetId_ApplyOnStartup = 0;
+                    }
+                }
+                else
+                {
+                    if (HasDisplaysAttached())
+                    {
+                        await ApplyPreset(preset);
+                    }
+                    else
+                    {
+                        attempts--;
+                        if (attempts > 0)
+                        {
+                            await Task.Delay(2000);
+                            await ApplyAmdPresetOnStartup(attempts);
+                        }
+                    }
+                }
+            }
         }
 
         private void LoadConfig()

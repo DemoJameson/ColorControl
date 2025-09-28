@@ -235,10 +235,10 @@ namespace ColorControl.Services.LG
             AddGenericPictureAction("noiseReduction", typeof(OffToHigh), title: "Noise Reduction");
             AddGenericPictureAction("mpegNoiseReduction", typeof(OffToHigh), title: "MPEG Noise Reduction");
 
-            AddHdmiPictureAction("gameMode_hdmi", typeof(OffToOn), category: "other", title: "Game Optimizer HDMI1", fromModelYear: ModelYear.Series2021);
+            AddHdmiPictureAction("gameMode_hdmi", typeof(OffToOn), category: "other", title: "Game Optimizer HDMIX", fromModelYear: ModelYear.Series2021);
             AddGenericPictureAction("gameOptimization", typeof(OffToOn), category: "other", title: "VRR & G-Sync", fromModelYear: ModelYear.Series2021);
             AddGenericPictureAction("inputOptimization", typeof(InputOptimization), category: "other", title: "Prevent Input Delay(Input Lag)", fromModelYear: ModelYear.Series2021);
-            AddHdmiPictureAction("gameOptimizationHDMI", typeof(OffToOn), category: "other");
+            AddHdmiPictureAction("gameOptimizationHDMI", typeof(OffToOn), category: "other", fromModelYear: ModelYear.Series2019);
             AddGenericPictureAction("freesync", typeof(OffToOn), category: "other", title: "AMD FreeSync Premium", fromModelYear: ModelYear.Series2020);
             AddHdmiPictureAction("freesyncOLEDHDMI", typeof(OffToOn), category: "other", fromModelYear: ModelYear.Series2020);
             AddGenericPictureAction("enableQFT", typeof(OffToOn), category: "other", title: "Quick Frame Transport", fromModelYear: ModelYear.Series2025);
@@ -507,14 +507,21 @@ namespace ColorControl.Services.LG
                     //_lgTvApi.Test3();
                     if (_lgTvApi != null && !Utils.ConsoleOpened)
                     {
-                        var info = await _lgTvApi.GetSystemInfo("modelName");
-                        if (info != null)
+                        try
                         {
-                            ModelName = info.modelName;
-                            SetModelYear();
-                        }
+                            var info = await _lgTvApi.GetSystemInfo("modelName");
+                            if (info != null)
+                            {
+                                ModelName = info.modelName;
+                                SetModelYear();
+                            }
 
-                        Logger.Debug($"LG TV with ip-address {IpAddress} has model name {ModelName}");
+                            Logger.Debug($"LG TV with ip-address {IpAddress} has model name {ModelName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Warn($"Could not get model name for LG TV with ip-address {IpAddress}: {ex.Message}");
+                        }
 
                         await _lgTvApi.SubscribeVolume(VolumeChanged);
                         await _lgTvApi.SubscribePowerState(PowerStateChanged);

@@ -53,6 +53,7 @@ public class GamePreset : PresetBase
     public List<string> FinalizeSteps { get; set; }
     public uint ProcessAffinityMask { get; set; }
     public uint ProcessPriorityClass { get; set; }
+    public bool PathExists { get; set; }
 
     [JsonIgnore]
     public GamePriorityClass GameProcessPriorityClass

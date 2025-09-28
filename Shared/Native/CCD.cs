@@ -1,12 +1,12 @@
-﻿using System.ComponentModel;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using ColorControl.Shared.Contracts;
+﻿using ColorControl.Shared.Contracts;
 using ColorControl.Shared.Forms;
 using MHC2Gen;
 using NStandard;
 using NWin32;
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace ColorControl.Shared.Native
 {
@@ -1824,6 +1824,7 @@ namespace ColorControl.Shared.Native
 
             [DllImport("user32.dll")]
             public extern static bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+
             [DllImport("user32.dll", CharSet = CharSet.Auto)]
             public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAYDEVICE lpDisplayDevice, uint dwFlags);
         }

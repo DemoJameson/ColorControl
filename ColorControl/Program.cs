@@ -12,6 +12,7 @@ using ColorControl.Shared.Forms;
 using ColorControl.Shared.Native;
 using ColorControl.Shared.Services;
 using ColorControl.Svc;
+using ColorControl.UI;
 using ColorControl.XForms;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -239,12 +240,7 @@ namespace ColorControl
 
             var winApi = AppContext.ServiceProvider.GetRequiredService<WinApiAdminService>();
 
-            winApi.StartProcess(GetNewUiUrl());
-        }
-
-        public static string GetNewUiUrl()
-        {
-            return $"http://localhost:{(Config.UiPort > 0 ? Config.UiPort : 5000)}";
+            winApi.StartProcess(Blazor.GetCurrentUrl());
         }
 
         public static async Task OpenNewUiEmbedded()
@@ -254,26 +250,37 @@ namespace ColorControl
                 await Task.Delay(500);
             }
 
-            BrowserWindow.CreateAndShow(GetNewUiUrl());
+            BrowserWindow.CreateAndShow(Blazor.GetCurrentUrl());
         }
 
-        private static bool UiServerStarted;
+        public static async Task<bool> StartOrStopUiServer()
+        {
+            if (Config.UiType == UiType.WinForms)
+            {
+                var _ = Task.Run(() => UI.Blazor.Stop());
+                return true;
+            }
+
+            return await StartUiServer();
+        }
 
         public static async Task<bool> StartUiServer()
         {
-            if (UiServerStarted)
+            if (UI.Blazor.IsRunning(Config))
             {
                 return false;
             }
 
             var backgroundService = ServiceProvider.GetRequiredService<ColorControlBackgroundService>();
 
-            backgroundService.PipeName = PipeUtils.MainPipe;
+            if (backgroundService.PipeName != PipeUtils.MainPipe)
+            {
+                backgroundService.PipeName = PipeUtils.MainPipe;
 
-            await backgroundService.StartAsync(CancellationToken.None);
+                await backgroundService.StartAsync(CancellationToken.None);
+            }
 
-            var _ = Task.Run(() => ColorControl.UI.Blazor.Start(Config));
-            UiServerStarted = true;
+            var _ = Task.Run(() => UI.Blazor.Start(Config));
 
             return true;
         }

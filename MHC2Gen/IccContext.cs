@@ -77,54 +77,89 @@ namespace MHC2Gen
             }
         }
 
-        public void ApplySdrAcm(double whiteLuminance = 120.0, double blackLuminance = 0.0, double gamma = 2.2, double boostPercentage = 0, double shadowDetailBoost = 0)
+        public void ApplySdrAcm(double whiteLuminance = 120.0, double blackLuminance = 0.0, double gamma = 2.2, double boostPercentage = 0, double shadowDetailBoost = 0, double shadowDetailRange = 30, double redGain = 100, double greenGain = 100, double blueGain = 100)
         {
             var lutSize = 1024;
+            var lutSizeDiv = lutSize - 1;
             var amplifier = boostPercentage == 0 ? 1 : 1 + boostPercentage / 100;
+            shadowDetailRange = lutSize * shadowDetailRange / 100;
 
             RegammaLUT = new double[3, lutSize];
 
-            for (var i = 0; i < lutSize; i++)
+            for (var c = 0; c < 3; c++)
             {
-                var (_, value) = CmsFunctions.SrgbAcm(i, whiteLuminance, blackLuminance, gamma, lutSize - 1);
+                var gain = c == 0 ? redGain : c == 1 ? greenGain : blueGain;
 
-                // Average between sSRGB and Piecewise gamma
-                if (shadowDetailBoost > 0)
+                for (var i = 0; i < lutSize; i++)
                 {
-                    var piecewiseValue = (double)i / 1023;
+                    var (_, value) = CmsFunctions.SrgbAcm(i, whiteLuminance, blackLuminance, gamma, lutSize - 1);
 
-                    var correctedBoost = (shadowDetailBoost * (1023 - i)) / 1023;
+                    value = ApplyGain(gain, value, i, lutSizeDiv);
+                    value = ApplyShadowDetailBoost(shadowDetailBoost, shadowDetailRange, value, i);
 
-                    value = ((value * (100 - correctedBoost)) + (piecewiseValue * correctedBoost)) / 100;
+                    RegammaLUT[c, i] = value * amplifier;
                 }
+            }
 
-                for (var c = 0; c < 3; c++)
+        }
+
+        public void ApplyPiecewise(double boostPercentage = 0, double shadowDetailBoost = 0, double shadowDetailRange = 30, double redGain = 100, double greenGain = 100, double blueGain = 100)
+        {
+            var lutSize = 1024;
+            var lutSizeDiv = lutSize - 1;
+            var amplifier = boostPercentage == 0 ? 1 : 1 + boostPercentage / 100;
+            shadowDetailRange = lutSize * shadowDetailRange / 100;
+
+            RegammaLUT = new double[3, lutSize];
+
+            for (var c = 0; c < 3; c++)
+            {
+                var gain = c == 0 ? redGain : c == 1 ? greenGain : blueGain;
+
+                for (var i = 0; i < lutSize; i++)
                 {
-                    //var tempPercentage = boostPercentage * ((double)i / lutSize);
+                    var value = (double)i / lutSizeDiv;
 
-                    //var amplifier = tempPercentage == 0 ? 1 : tempPercentage > 0 ? 1 + tempPercentage / 100 : 1 - tempPercentage / 100;
+                    value = ApplyGain(gain, value, i, lutSizeDiv);
+                    value = ApplyShadowDetailBoost(shadowDetailBoost, shadowDetailRange, value, i);
 
                     RegammaLUT[c, i] = value * amplifier;
                 }
             }
         }
 
-        public void ApplyPiecewise(double boostPercentage = 0)
+        public static double ApplyGain(double gain, double value, int lutIndex, int lutSizeDiv)
         {
-            var lutSize = 1024;
-            var amplifier = boostPercentage == 0 ? 1 : 1 + boostPercentage / 100;
-
-            RegammaLUT = new double[3, lutSize];
-
-            for (var i = 0; i < lutSize; i++)
+            if (gain != 100 && gain >= 1 && gain <= 200)
             {
-                var value = (double)i / 1023;
+                var skewedGain = (((lutSizeDiv - (double)lutIndex) / lutSizeDiv) * (gain - 100)) + 100;
 
-                for (var c = 0; c < 3; c++)
+                value *= skewedGain / 100;
+            }
+
+            return value;
+        }
+
+        public static double ApplyShadowDetailBoost(double boost, double range, double value, int lutIndex)
+        {
+            if (boost != 0 && lutIndex < range)
+            {
+                var correctedBoost = (boost * (range - lutIndex)) / range;
+
+                // Average between sSRGB and Piecewise gamma
+                if (true)
                 {
-                    RegammaLUT[c, i] = value * amplifier;
+                    var piecewiseValue = (double)lutIndex / 1023;
+
+                    value = ((value * (100 - correctedBoost)) + (piecewiseValue * correctedBoost)) / 100;
+                }
+                else
+                {
+                    value *= (100 + correctedBoost) / 100;
                 }
             }
+
+            return value;
         }
 
         public void ApplyToneMappingCurve(double maxInputNits = 400, double maxOutputNits = 400, double curve_like = 400)
@@ -223,30 +258,22 @@ namespace MHC2Gen
             return L;
         }
 
-
-
-        public void ApplyGamma(double gamma = 2.2, double shadowDetailBoost = 0)
+        public void ApplyGamma(double gamma = 2.2, double shadowDetailBoost = 0, double shadowDetailRange = 30)
         {
             var lutSize = 1024;
+            var lutSizeDiv = lutSize - 1;
+            shadowDetailRange = lutSize * shadowDetailRange / 100;
 
             RegammaLUT = new double[3, lutSize];
 
-            for (var i = 0; i < lutSize; i++)
+            for (var c = 0; c < 3; c++)
             {
-                var value = CmsFunctions.RgbToLinear((double)i / (lutSize - 1), gamma);
-
-                // Average between sSRGB and Piecewise gamma
-                if (shadowDetailBoost > 0)
+                for (var i = 0; i < lutSize; i++)
                 {
-                    var piecewiseValue = (double)i / lutSize;
+                    var value = CmsFunctions.RgbToLinear((double)i / lutSizeDiv, gamma);
 
-                    var correctedBoost = (shadowDetailBoost * (lutSize - i)) / lutSize;
+                    value = ApplyShadowDetailBoost(shadowDetailBoost, shadowDetailRange, value, i);
 
-                    value = ((value * (100 - correctedBoost)) + (piecewiseValue * correctedBoost)) / 100;
-                }
-
-                for (var c = 0; c < 3; c++)
-                {
                     RegammaLUT[c, i] = value;
                 }
             }
@@ -355,10 +382,13 @@ namespace MHC2Gen
         public double SDRMaxBrightness { get; set; }
         public double SDRBrightnessBoost { get; set; }
         public double ShadowDetailBoost { get; set; }
+        public double ShadowDetailRange { get; set; }
+        public double RedGain { get; set; }
+        public double GreenGain { get; set; }
+        public double BlueGain { get; set; }
         public ColorGamut TargetGamut { get; set; }
         public double ToneMappingFromLuminance { get; set; }
         public double ToneMappingToLuminance { get; set; }
-
         public double HdrGammaMultiplier { get; set; }
         public double HdrBrightnessMultiplier { get; set; }
     }
@@ -568,6 +598,21 @@ namespace MHC2Gen
                 if (json != null)
                 {
                     ExtraInfoTag = JsonSerializer.Deserialize<ExtraInfoTag>(json);
+                    if (ExtraInfoTag != null)
+                    {
+                        if (ExtraInfoTag.RedGain == 0)
+                        {
+                            ExtraInfoTag.RedGain = 100;
+                        }
+                        if (ExtraInfoTag.GreenGain == 0)
+                        {
+                            ExtraInfoTag.GreenGain = 100;
+                        }
+                        if (ExtraInfoTag.BlueGain == 0)
+                        {
+                            ExtraInfoTag.BlueGain = 100;
+                        }
+                    }
                 }
             }
         }
@@ -1089,19 +1134,18 @@ namespace MHC2Gen
             {
                 if (command.SDRTransferFunction == SDRTransferFunction.Piecewise)
                 {
-                    MHC2.ApplyPiecewise(command.SDRBrightnessBoost);
+                    MHC2.ApplyPiecewise(command.SDRBrightnessBoost, command.ShadowDetailBoost, command.ShadowDetailRange, command.RedGain, command.GreenGain, command.BlueGain);
                 }
                 else if (command.SDRTransferFunction == SDRTransferFunction.PurePower)
                 {
-                    MHC2.ApplySdrAcm(command.SDRMaxBrightness, command.SDRMinBrightness, command.Gamma, command.SDRBrightnessBoost, command.ShadowDetailBoost);
+                    MHC2.ApplySdrAcm(command.SDRMaxBrightness, command.SDRMinBrightness, command.Gamma, command.SDRBrightnessBoost, command.ShadowDetailBoost, command.ShadowDetailRange, command.RedGain, command.GreenGain, command.BlueGain);
                 }
                 else if (command.SDRTransferFunction == SDRTransferFunction.BT_1886)
                 {
-                    MHC2.ApplySdrAcm(120, 0.03, 2.4, command.SDRBrightnessBoost, command.ShadowDetailBoost);
+                    MHC2.ApplySdrAcm(120, 0.03, 2.4, command.SDRBrightnessBoost, command.ShadowDetailBoost, command.ShadowDetailRange, command.RedGain, command.GreenGain, command.BlueGain);
                 }
                 else if (command.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)
                 {
-
                     double from_nits = command.ToneMappingFromLuminance;
 
                     double to_nits = command.ToneMappingToLuminance;
@@ -1114,7 +1158,6 @@ namespace MHC2Gen
 
                     MHC2.ApplyToneMappingCurve(from_nits, from_nits, curve_like);
                     MHC2.ApplyToneMappingCurveGamma(from_nits, from_nits, gamma_like);
-
                 }
             }
             else
@@ -1125,7 +1168,7 @@ namespace MHC2Gen
                 }
                 else
                 {
-                    MHC2.ApplyPiecewise(command.SDRBrightnessBoost);
+                    MHC2.ApplyPiecewise(command.SDRBrightnessBoost, command.ShadowDetailBoost, command.ShadowDetailRange, command.RedGain, command.GreenGain, command.BlueGain);
                 }
             }
 
@@ -1162,7 +1205,7 @@ namespace MHC2Gen
             outputProfile.HeaderManufacturer = profile.HeaderManufacturer;
             outputProfile.HeaderModel = profile.HeaderModel;
             outputProfile.HeaderAttributes = profile.HeaderAttributes;
-            outputProfile.HeaderRenderingIntent = RenderingIntent.PERCEPTUAL;
+            outputProfile.HeaderRenderingIntent = command.RenderingIntent;
 
             var descAppendix = $" ({GetDeviceDescription()})";
             var new_desc = command.Description ?? "";
@@ -1181,11 +1224,16 @@ namespace MHC2Gen
                 SDRMaxBrightness = command.SDRMaxBrightness,
                 SDRBrightnessBoost = command.SDRBrightnessBoost,
                 ShadowDetailBoost = command.ShadowDetailBoost,
+                ShadowDetailRange = command.ShadowDetailRange,
+                RedGain = command.RedGain,
+                GreenGain = command.GreenGain,
+                BlueGain = command.BlueGain,
                 TargetGamut = command.ColorGamut,
                 ToneMappingFromLuminance = command.ToneMappingFromLuminance,
                 ToneMappingToLuminance = command.ToneMappingToLuminance,
                 HdrGammaMultiplier = command.HdrGammaMultiplier,
-                HdrBrightnessMultiplier = command.HdrBrightnessMultiplier
+                HdrBrightnessMultiplier = command.HdrBrightnessMultiplier,
+
             };
 
             var ccDesc = JsonSerializer.Serialize(extraInfoTag);

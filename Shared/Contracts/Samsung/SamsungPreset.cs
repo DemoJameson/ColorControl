@@ -31,6 +31,7 @@ public class SamsungPreset : PresetBase
     public void Update(SamsungPreset preset)
     {
         name = preset.name;
+        shortcut = preset.shortcut;
         Description = preset.Description;
         AppId = preset.AppId;
         DeviceMacAddress = preset.DeviceMacAddress;

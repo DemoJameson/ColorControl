@@ -996,8 +996,10 @@ namespace ColorControl.Services.Samsung
                 return true;
             }
 
-            var newPreset = new SamsungPreset(specPreset);
-            newPreset.name = specPreset.name;
+            var newPreset = new SamsungPreset(specPreset)
+            {
+                name = specPreset.name
+            };
 
             _presets.Add(newPreset);
 

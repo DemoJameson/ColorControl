@@ -81,4 +81,43 @@ public static class WinApi
 
     [DllImport("dwmapi.dll", EntryPoint = "#171")]
     public static extern void DwmpSDRToHDRBoostPtr(IntPtr monitor, double brightness);
+
+    public enum MC_VCP_CODE_TYPE
+    {
+        MC_MOMENTARY,
+        MC_SET_PARAMETER
+    };
+
+    [DllImport("Dxva2.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetVCPFeatureAndVCPFeatureReply(nint hMonitor, byte vcpCode, out MC_VCP_CODE_TYPE codeType, out uint currentValue, out uint maximumValue);
+
+    [DllImport("Dxva2.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetVCPFeature(nint hMonitor, byte vcpCode, uint newValue);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    public struct PHYSICAL_MONITOR
+    {
+        public IntPtr hPhysicalMonitor;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string szPhysicalMonitorDescription;
+    }
+
+    [DllImport("Dxva2.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetNumberOfPhysicalMonitorsFromHMONITOR(IntPtr hMonitor, out uint pdwNumberOfPhysicalMonitors);
+
+    [DllImport("Dxva2.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetPhysicalMonitorsFromHMONITOR(IntPtr hMonitor, uint dwPhysicalMonitorArraySize, [Out] PHYSICAL_MONITOR[] pPhysicalMonitorArray);
+
+    [DllImport("Dxva2.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DestroyPhysicalMonitors(uint dwPhysicalMonitorArraySize, [In] PHYSICAL_MONITOR[] pPhysicalMonitorArray);
+
+    [DllImport("Dxva2.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DestroyPhysicalMonitor(IntPtr hMonitor);
 }

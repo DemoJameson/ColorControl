@@ -2,6 +2,7 @@
 using ColorControl.Shared.Contracts;
 using ColorControl.Shared.EventDispatcher;
 using ColorControl.Shared.Services;
+using ColorControl.UI;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -34,6 +35,7 @@ public class OptionsService
     public Config GetConfig()
     {
         _globalContext.Config.AutoStart = _winApiService.TaskExists(Program.TS_TASKNAME);
+        _globalContext.Config.CurrentUiPort = Blazor.GetCurrentPort();
 
         return _globalContext.Config;
     }
@@ -109,7 +111,7 @@ public class OptionsService
     public bool SetMinimizeToTray(bool value)
     {
         _globalContext.Config.MinimizeToTray = value;
-        Program.GetNotifyIcon().Visible = _globalContext.Config.MinimizeToTray;
+        Program.GetNotifyIcon().Visible = _globalContext.Config.MinimizeToTray || _globalContext.Config.UiType != UiType.WinForms;
 
         return true;
     }
@@ -147,12 +149,14 @@ public class OptionsService
     {
         _globalContext.Config.UiType = uiType;
 
+        var _ = Program.StartOrStopUiServer();
+
         return true;
     }
 
     public bool SetUiPort(int uiPort)
     {
-        if (uiPort is <= 0 or > 65535)
+        if (uiPort is < 0 or > 65535)
         {
             return false;
         }
@@ -163,6 +167,17 @@ public class OptionsService
         }
 
         _globalContext.Config.UiPort = uiPort;
+
+        var _ = Program.StartOrStopUiServer();
+
+        return true;
+    }
+
+    public bool SetUiAllowRemoteConnections(bool value)
+    {
+        _globalContext.Config.UiAllowRemoteConnections = value;
+
+        var _ = Program.StartOrStopUiServer();
 
         return true;
     }

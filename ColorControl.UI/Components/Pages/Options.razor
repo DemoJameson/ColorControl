@@ -11,6 +11,8 @@
 @inject AppState AppState
 @inject NavigationManager _navigationManager
 @inject NotificationService _notificationService
+@inject JSHelper _jsHelper;
+@inject IHttpContextAccessor _httpContextAccessor
 
 <PageTitle>Options</PageTitle>
 
@@ -81,9 +83,26 @@ else
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="webUiPort">
-                                Web UI port
+                                Web UI port (use 0 for automatic assignment)
                             </label>
+                            @if (IsChangingUiPort)
+                            {
+                                <div class="alert alert-warning mb-2" role="alert">
+                                    Changing the UI port. If the UI is not reloaded correctly, close this window and relaunch the UI.
+                                </div>
+                            }
                             <input class="form-control" type="number" @bind="config.UiPort" id="webUiPort" @bind:after="UiPortBlur">
+                            @if (config.CurrentUiPort > 0)
+                            {
+                                <div id="uiPortHelp" class="form-text">Currently listening on port @config.CurrentUiPort</div>
+                            }
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input class="form-check-input" type="checkbox" @bind="config.UiAllowRemoteConnections" id="uiAllowRemoteConnections" @bind:after="UiAllowRemoteConnectionsChange">
+                            <label class="form-check-label" for="uiAllowRemoteConnections">
+                                Web UI: Allow remote connections
+                            </label>
+                            <div id="uiAllowRemoteConnectionsHelp" class="form-text">Allows or disallows remote connections to the UI. Only enable this if you want to access the UI from another device (eg. your phone) than the system ColorControl is running on</div>
                         </div>
                         <div class="mb-3 form-check">
                             <input class="form-check-input" type="checkbox" @bind="config.MinimizeOnClose" id="minimizeOnClose" @oninput="MinimizeOnCloseInput">
@@ -183,10 +202,13 @@ else
 
 @code {
     private Config? config;
+    private bool IsEmbeddedBrowser;
+    private bool IsChangingUiPort;
 
     protected override async Task OnInitializedAsync()
     {
         config = await _rpcClientService.CallAsync<Config>("OptionsService", "GetConfig");
+        IsEmbeddedBrowser = _httpContextAccessor.HttpContext?.Request.Headers["user-agent"].ToString().Contains("ColorControlEmbedded") == true;
     }
 
     private async Task SaveConfig()
@@ -313,6 +335,39 @@ else
 
     private async Task UiPortBlur()
     {
-        await _rpcClientService.CallAsync<bool>("OptionsService", "SetUiPort", config!.UiPort);
+        if (config == null)
+        {
+            return;
+        }
+
+        IsChangingUiPort = true;
+
+        if (config.UiPort > 0 || IsEmbeddedBrowser)
+        {
+            await NavigateToNewPort(config.UiPort, 5000);
+        }
+
+        var result = await _rpcClientService.CallAsync<bool>("OptionsService", "SetUiPort", config.UiPort);
+    }
+
+    private async Task UiAllowRemoteConnectionsChange()
+    {
+        await _rpcClientService.CallAsync<bool>("OptionsService", "SetUiAllowRemoteConnections", config!.UiAllowRemoteConnections);
+    }
+
+    private async Task NavigateToNewPort(int port, int timeout = 0)
+    {
+        var uri = new UriBuilder(_navigationManager.Uri);
+        uri.Port = port;
+        var newUri = uri.Uri.ToString();
+
+        if (timeout == 0)
+        {
+            _navigationManager.NavigateTo(uri.ToString(), true);
+        }
+        else
+        {
+            await _jsHelper.NavigateTo(newUri, timeout);
+        }
     }
 }

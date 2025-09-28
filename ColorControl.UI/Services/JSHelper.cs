@@ -34,6 +34,11 @@ public class JSHelper(IJSRuntime jsRuntime)
         await InvokeVoidAsync("ShowToast", id);
     }
 
+    public async Task NavigateTo(string uri, int timeout = 0)
+    {
+        await InvokeVoidAsync("NavigateTo", uri, timeout);
+    }
+
     public async Task<RectDimension> GetElementDimensions(string id)
     {
         jsModule = await LoadModule();

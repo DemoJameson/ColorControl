@@ -19,89 +19,170 @@
             <div class="d-flex ms-auto">
                 @if (NvPresets != null || SamsungPresets != null || LgPresets != null || CustomItems != null)
                 {
-                    <div class="dropdown dropend mb-1">
+                    <div class="dropdown dropstart mb-1">
                         <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">Add</button>
-                        <form class="dropdown-menu p-4 dropdown-menu-end" style="width: 360px">
-                            @if (NvPresets != null && NvPresetsEnabled)
-                            {
-                                <div class="mb-2">
-                                    <label class="form-label" for="nvPreset">NVIDIA preset</label>
-                                    <select class="form-select" multiple id="nvPreset" @onchange="NvPresetChange">
-                                        @foreach (var preset in NvPresets)
-                                        {
-                                            <option value="@preset.id">@preset.IdOrName</option>
-                                        }
-                                    </select>
-                                </div>
-                            }
-                            @if (SamsungPresets != null && SamsungPresetsEnabled)
-                            {
-                                <div class="mb-2">
-                                    <label class="form-label" for="samsungPreset">Samsung preset</label>
-                                    <select class="form-select" id="samsungPreset" @bind="SamsungPresetToAddId">
-                                        <option value="">Select preset</option>
-                                        @foreach (var preset in SamsungPresets)
-                                        {
-                                            <option value="@preset.id">@preset.IdOrName</option>
-                                        }
-                                    </select>
-                                </div>
-                            }
-                            @if (LgPresets != null && LgPresetsEnabled)
-                            {
-                                <div class="mb-2">
-                                    <label class="form-label" for="lgPreset">LG preset</label>
-                                    <select class="form-select" id="lgPreset" @bind="LgPresetToAddId">
-                                        <option value="">Select preset</option>
-                                        @foreach (var preset in LgPresets)
-                                        {
-                                            <option value="@preset.id">@preset.IdOrName</option>
-                                        }
-                                    </select>
-                                </div>
-                            }
-                            @if (CustomItems != null)
-                            {
-                                foreach (var customItem in CustomItems)
-                                {
-                                    <div class="mb-2">
-                                        <label class="form-label" for="customItem">@customItem.Name</label>
-                                        <select class="form-select" id="customItem" @bind="customItem.SelectedItem">
-                                            <option value="">Select item</option>
-                                            @foreach (var item in customItem.Items)
-                                            {
-                                                <option value="@item">@item</option>
-                                            }
-                                        </select>
-                                    </div>
+                        <form class="dropdown-menu p-3 dropdown-menu-end" style="width: 21rem; height: 430px">
+                            <ul class="nav nav-tabs" id="presetTab" role="tablist">
+                                @{
+                                    var linkActive = "active";
                                 }
-                            }
 
-                            <StartProgramInput @bind-Path="StartProgramPath" @bind-Parameters="StartProgramParameters"></StartProgramInput>
-
-                            @if (ActionItems != null)
-                            {
-                                foreach (var customItem in ActionItems)
+                                @if (NvPresets != null && NvPresetsEnabled)
                                 {
-                                    <div class="mb-2">
-                                        <label class="form-label" for="advancedCustomItem">@customItem.Name</label>
-                                        <select class="form-select" id="advancedCustomItem" @bind="customItem.SelectedActionName" @bind:after="() => AdvancedItemChanged(customItem)">
-                                            <option value="">Select action</option>
-                                            @foreach (var keyValue in customItem.GroupedActions)
-                                            {
-                                                <optgroup label="@keyValue.Key">
-                                                    @foreach (var item in keyValue.Value)
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link px-2 @(linkActive)" id="nvidia-tab" data-bs-toggle="tab" data-bs-target="#nvidia-tab-pane" type="button" role="tab" aria-controls="nvidia-tab-pane" aria-selected="true">NVIDIA</button>
+                                    </li>
+                                    linkActive = "";
+                                }
+                                @if (SamsungPresets != null && SamsungPresetsEnabled)
+                                {
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link px-2 @(linkActive)" id="samsung-tab" data-bs-toggle="tab" data-bs-target="#samsung-tab-pane" type="button" role="tab" aria-controls="samsung-tab-pane" aria-selected="true">Samsung</button>
+                                    </li>
+                                    linkActive = "";
+                                }
+                                @if (LgPresets != null && LgPresetsEnabled)
+                                {
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link px-2 @(linkActive)" id="lg-tab" data-bs-toggle="tab" data-bs-target="#lg-tab-pane" type="button" role="tab" aria-controls="lg-tab-pane" aria-selected="true">LG</button>
+                                    </li>
+                                    linkActive = "";
+                                }
+                                @if (CustomItems != null)
+                                {
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link px-2 @(linkActive)" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom-tab-pane" type="button" role="tab" aria-controls="custom-tab-pane" aria-selected="true">Custom</button>
+                                    </li>
+                                    linkActive = "";
+                                }
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link px-2 @(linkActive)" id="program-tab" data-bs-toggle="tab" data-bs-target="#program-tab-pane" type="button" role="tab" aria-controls="program-tab-pane" aria-selected="true">Program</button>
+                                </li>
+                                @if (ActionItems != null)
+                                {
+                                    linkActive = "";
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link px-2 @(linkActive)" id="action-tab" data-bs-toggle="tab" data-bs-target="#action-tab-pane" type="button" role="tab" aria-controls="action-tab-pane" aria-selected="true">Action</button>
+                                    </li>
+                                }
+                            </ul>
+
+                            <div class="tab-content" id="presetTabContent">
+                                @{
+                                    var tabActive = "show active";
+                                }
+
+                                @if (NvPresets != null && NvPresetsEnabled)
+                                {
+                                    <div class="tab-pane fade @(tabActive)" id="nvidia-tab-pane" role="tabpanel" aria-labelledby="nvidia-tab">
+                                        <div class="mt-3 mb-3">
+                                            <label class="form-label" for="nvPreset">NVIDIA preset</label>
+                                            <select class="form-select" multiple id="nvPreset" @onchange="NvPresetChange" style="height: 250px">
+                                                @foreach (var preset in NvPresets)
+                                                {
+                                                    <option value="@preset.id">@preset.IdOrName</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddNvPresetOnClick()" disabled="@(NvPresetsToAdd.Count == 0)">Add item(s)</button>
+                                    </div>
+                                    tabActive = "";
+                                }
+                                @if (SamsungPresets != null && SamsungPresetsEnabled)
+                                {
+                                    <div class="tab-pane fade @(tabActive)" id="samsung-tab-pane" role="tabpanel" aria-labelledby="samsung-tab">
+                                        <div class="mt-3 mb-3">
+                                            <label class="form-label" for="samsungPreset">Samsung preset</label>
+                                            <select class="form-select" id="samsungPreset" @bind="SamsungPresetToAddId">
+                                                <option value="">Select preset</option>
+                                                @foreach (var preset in SamsungPresets)
+                                                {
+                                                    <option value="@preset.id">@preset.IdOrName</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddSamsungPresetOnClick()">Add item</button>
+                                    </div>
+                                    tabActive = "";
+                                }
+                                @if (LgPresets != null && LgPresetsEnabled)
+                                {
+                                    <div class="tab-pane fade @(tabActive)" id="lg-tab-pane" role="tabpanel" aria-labelledby="lg-tab">
+                                        <div class="mt-3 mb-3">
+                                            <label class="form-label" for="lgPreset">LG preset</label>
+                                            <select class="form-select" id="lgPreset" @bind="LgPresetToAddId">
+                                                <option value="">Select preset</option>
+                                                @foreach (var preset in LgPresets)
+                                                {
+                                                    <option value="@preset.id">@preset.IdOrName</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddLgPresetOnClick()">Add item</button>
+                                    </div>
+                                    tabActive = "";
+                                }
+                                @if (CustomItems != null)
+                                {
+                                    <div class="tab-pane fade @(tabActive)" id="custom-tab-pane" role="tabpanel" aria-labelledby="custom-tab">
+                                        @foreach (var customItem in CustomItems)
+                                        {
+                                            <div class="mt-3 mb-3">
+                                                <label class="form-label" for="customItem">@customItem.Name</label>
+                                                <select class="form-select" id="customItem" @bind="customItem.SelectedItem">
+                                                    <option value="">Select item</option>
+                                                    @foreach (var item in customItem.Items)
                                                     {
-                                                        <option value="@item.Name">@item.Title</option>
+                                                        <option value="@item">@item</option>
                                                     }
-                                                </optgroup>
-                                            }
-                                        </select>
+                                                </select>
+                                            </div>
+                                        }
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddCustomItemsOnClick()">Add item</button>
                                     </div>
-                                    <FieldDefs Fields="ActionFields"></FieldDefs>
+                                    tabActive = "";
                                 }
-                            }
-                            <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddPresetOnClick()">Add items</button>
+
+                                <div class="tab-pane fade @(tabActive)" id="program-tab-pane" role="tabpanel" aria-labelledby="program-tab">
+                                    <div class="mt-3 mb-3">
+                                        <StartProgramInput @bind-Path="StartProgramPath" @bind-Parameters="StartProgramParameters"></StartProgramInput>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddStartProgramOnClick()">Add item</button>
+                                </div>
+
+                                @{
+                                    tabActive = "";
+                                }
+
+                                @if (ActionItems != null)
+                                {
+                                    <div class="tab-pane fade @(tabActive)" id="action-tab-pane" role="tabpanel" aria-labelledby="action-tab">
+                                        <div class="mt-3 mb-3">
+                                            @foreach (var customItem in ActionItems)
+                                            {
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="advancedCustomItem">@customItem.Name</label>
+                                                    <select class="form-select" id="advancedCustomItem" @bind="customItem.SelectedActionName" @bind:after="() => AdvancedItemChanged(customItem)">
+                                                        <option value="">Select action</option>
+                                                        @foreach (var keyValue in customItem.GroupedActions)
+                                                        {
+                                                            <optgroup label="@keyValue.Key">
+                                                                @foreach (var item in keyValue.Value)
+                                                                {
+                                                                    <option value="@item.Name">@item.Title</option>
+                                                                }
+                                                            </optgroup>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <FieldDefs Fields="ActionFields"></FieldDefs>
+                                            }
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => AddActionItemsOnClick()">Add item</button>
+                                    </div>
+                                }
+
+                            </div>
                         </form>
                     </div>
                 }
@@ -121,7 +202,7 @@
                     {
                         var stepIndex = index;
 
-                        <button type="button" class="btn btn-outline-primary dropdown-toggle text-break text-wrap" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">@step.Raw</button>
+                        <button type="button" class="btn btn-outline-primary dropdown-toggle text-break text-wrap" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside" @onclick="() => PresetStepClick(step)">@step.Raw</button>
                         <form class="dropdown-menu p-4 dropdown-menu-end" style="width: 200px">
                             <div class="mb-2">
                                 <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="dropdown" title="Move left" disabled="@(stepIndex == 0)" @onclick="() => MoveLeftOnClick(stepIndex)">&lt;</button>
@@ -129,6 +210,10 @@
                                 <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="dropdown" @onclick="() => RemoveOnClick(stepIndex)">Remove</button>
                             </div>
                             <RangeInput TValue="int" @bind-Value="step.Delay" Id="delay" Label="Delay" Unit="ms" Max="10000" @bind-Value:after="() => AfterDelayChanged()" />
+                            @if (ActionFieldsEdit != null)
+                            {
+                                <FieldDefs Fields="ActionFieldsEdit" FieldValueChanged="ActionFieldValueChanged"></FieldDefs>
+                            }
                         </form>
 
                         index++;
@@ -166,6 +251,8 @@
 
     [Parameter]
     public bool LgPresetsEnabled { get; set; } = true;
+
+    private PresetStep? CurrentPresetStep;
 
     public class ActionStepItem
     {
@@ -219,6 +306,7 @@
     private string? RawText;
 
     private List<FieldDefinition>? ActionFields;
+    private List<FieldDefinition>? ActionFieldsEdit;
 
     private string? StartProgramPath;
     private string? StartProgramParameters;
@@ -229,9 +317,16 @@
     {
         if (Steps != null)
         {
+            var stepIndex = CurrentPresetStep != null ? PresetSteps.IndexOf(CurrentPresetStep) : -1;
+
             PresetSteps.Clear();
             PresetSteps.AddRange(Steps.Select(s => PresetStep.Parse(s)));
             RawText = string.Join(", ", PresetSteps);
+
+            if (stepIndex > -1 && stepIndex < PresetSteps.Count)
+            {
+                CurrentPresetStep = PresetSteps[stepIndex];
+            }
         }
     }
 
@@ -293,6 +388,72 @@
 
     private async Task AfterDelayChanged()
     {
+        await EmitSteps();
+    }
+
+    private async Task AddNvPresetOnClick()
+    {
+        NvPresetsToAdd.ForEach(id => AddPreset(NvPresets, "NvPreset", id));
+
+        await EmitSteps();
+    }
+
+    private async Task AddSamsungPresetOnClick()
+    {
+        AddPreset(SamsungPresets, "SamsungPreset", SamsungPresetToAddId);
+
+        await EmitSteps();
+    }
+
+    private async Task AddLgPresetOnClick()
+    {
+        AddPreset(LgPresets, "LgPreset", LgPresetToAddId);
+
+        await EmitSteps();
+    }
+
+    private async Task AddCustomItemsOnClick()
+    {
+        if (CustomItems != null && Steps != null)
+        {
+            foreach (var customItem in CustomItems)
+            {
+                if (string.IsNullOrWhiteSpace(customItem.SelectedItem))
+                {
+                    continue;
+                }
+
+                PresetSteps.Add(PresetStep.Parse(customItem.SelectedItem));
+            }
+        }
+
+        await EmitSteps();
+    }
+
+    private async Task AddActionItemsOnClick()
+    {
+        if (ActionItems != null && Steps != null)
+        {
+            foreach (var customItem in ActionItems)
+            {
+                if (string.IsNullOrWhiteSpace(customItem.SelectedActionName))
+                {
+                    continue;
+                }
+
+                var stepString = customItem.GetStepString(ActionFields);
+
+                PresetSteps.Add(PresetStep.Parse(stepString));
+            }
+        }
+
+        await EmitSteps();
+    }
+
+    private async Task AddStartProgramOnClick()
+    {
+        AddStartProgram();
+
         await EmitSteps();
     }
 
@@ -456,5 +617,35 @@
             NvPresetsToAdd.Clear();
             NvPresetsToAdd.AddRange(items.Select(i => int.Parse(i)));
         }
+    }
+
+    private void PresetStepClick(PresetStep step)
+    {
+        CurrentPresetStep = step;
+
+        var action = ActionItems?.SelectMany(ai => ai.Actions).FirstOrDefault(a => a.Name.Equals(step.ActionName, StringComparison.OrdinalIgnoreCase));
+
+        if (action == null)
+        {
+            ActionFieldsEdit = null;
+            return;
+        }
+
+        var field = CreateField(action);
+        field.StringValue = step.ActionValue;
+
+        ActionFieldsEdit = [field];
+    }
+
+    private async Task ActionFieldValueChanged(FieldDefinition field)
+    {
+        if (CurrentPresetStep == null)
+        {
+            return;
+        }
+
+        CurrentPresetStep.ActionValue = field.StringValue;
+
+        await EmitSteps();
     }
 }

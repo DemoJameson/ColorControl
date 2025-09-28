@@ -85,6 +85,7 @@ namespace ColorControl.Shared.Contracts.NVIDIA
         public bool ApplyNovideoSettings { get; set; }
         public NovideoSettings NovideoSettings { get; set; }
         public DpiScaling DpiScaling { get; set; }
+        public DdcSettings DdcSettings { get; set; }
 
         public bool SetDitherRegistryKey { get; set; }
         public bool RestartDriver { get; set; }
@@ -123,12 +124,14 @@ namespace ColorControl.Shared.Contracts.NVIDIA
             HdrSettings = new NvHdrSettings();
             NovideoSettings = new NovideoSettings();
             DpiScaling = new DpiScaling();
+            DdcSettings = new DdcSettings();
         }
 
         public NvPreset(ColorData colorData) : this()
         {
             id = GetNewId();
             this.colorData = colorData;
+            this.applyColorData = true;
         }
 
         public NvPreset(NvPreset preset) : this()
@@ -157,6 +160,9 @@ namespace ColorControl.Shared.Contracts.NVIDIA
                     ColorEnhancementSettings.DigitalVibranceLevel != currentSettings.ColorEnhancementSettings.DigitalVibranceLevel ||
                     ColorEnhancementSettings.HueAngle != currentSettings.ColorEnhancementSettings.HueAngle;
             DpiScaling.ApplyScaling = keepChanges && DpiScaling.ApplyScaling || DpiScaling.Percentage != currentSettings.DpiScaling.Percentage;
+            DdcSettings.ApplyDdc = keepChanges && DdcSettings.ApplyDdc ||
+                (!(DdcSettings.Settings.Count == 1 && DdcSettings.Settings[0].VcpCode == 0) &&
+                !DdcSettings.Settings.All(s => currentSettings.DdcSettings.Settings.Any(cs => cs.VcpCode == s.VcpCode && cs.Value == s.Value)));
         }
 
         public void Update(NvPreset preset)
@@ -179,6 +185,8 @@ namespace ColorControl.Shared.Contracts.NVIDIA
 
             applyDithering = preset.applyDithering;
             ditheringEnabled = preset.ditheringEnabled;
+            ditheringMode = preset.ditheringMode;
+            ditheringBits = preset.ditheringBits;
 
             DisplayConfig = new DisplayConfig(preset.DisplayConfig);
 
@@ -204,6 +212,7 @@ namespace ColorControl.Shared.Contracts.NVIDIA
             ocSettings = preset.ocSettings.Select(s => new NvGpuOcSettings(s)).ToList();
 
             DpiScaling = new DpiScaling(preset.DpiScaling);
+            DdcSettings = new DdcSettings(preset.DdcSettings);
 
             MonitorConnectionType = preset.MonitorConnectionType;
 
@@ -235,7 +244,7 @@ namespace ColorControl.Shared.Contracts.NVIDIA
 
         public bool HasApplicableSettings => applyColorData || applyDithering || applyDriverSettings || applyHdmiSettings || applyHDR || applyOther ||
             applyOverclocking || ApplyColorEnhancements || ApplyNovideoSettings ||
-            DisplayConfig.ApplyRefreshRate || DisplayConfig.ApplyResolution || DpiScaling.ApplyScaling;
+            DisplayConfig.ApplyRefreshRate || DisplayConfig.ApplyResolution || DpiScaling.ApplyScaling || DdcSettings.ApplyDdc;
 
         public bool HasEqualOverclockingSettings(NvPreset preset)
         {

@@ -58,7 +58,7 @@ namespace ColorControl.Services.Common
 
         public abstract List<string> GetInfo();
 
-        public List<T> GetPresets()
+        public virtual List<T> GetPresets()
         {
             return _presets;
         }

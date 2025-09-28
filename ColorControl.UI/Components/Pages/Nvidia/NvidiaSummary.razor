@@ -245,6 +245,10 @@ else
 								{
 									<li class="list-group-item p-1">Color profile: @preset.ColorProfileSettings.ProfileName</li>
 								}
+								@if (preset.DdcSettings.ApplyDdc && preset.DdcSettings.Settings.Count > 0)
+								{
+									<li class="list-group-item p-1">DDC: @preset.DdcSettings.Settings[0]</li>
+								}
 							</ul>
 						</small>
 						<small class="text-muted">@preset.shortcut</small>

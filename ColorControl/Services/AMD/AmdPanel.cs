@@ -121,45 +121,6 @@ namespace ColorControl.Services.AMD
             ServiceFormUtils.AddOrUpdateListItem(lvAmdPresets, _amdService.GetPresets(), _config, preset);
         }
 
-        public async Task AfterInitialized()
-        {
-            await ApplyAmdPresetOnStartup();
-        }
-
-        private async Task ApplyAmdPresetOnStartup(int attempts = 5)
-        {
-            var startUpParams = Shared.Common.GlobalContext.CurrentContext.StartUpParams;
-            var presetIdOrName = !string.IsNullOrEmpty(startUpParams.AmdPresetIdOrName) ? startUpParams.AmdPresetIdOrName : _config.AmdPresetId_ApplyOnStartup.ToString();
-
-            if (!string.IsNullOrEmpty(presetIdOrName))
-            {
-                var preset = _amdService?.GetPresetByIdOrName(presetIdOrName);
-                if (preset == null)
-                {
-                    if (string.IsNullOrEmpty(startUpParams.AmdPresetIdOrName))
-                    {
-                        _config.AmdPresetId_ApplyOnStartup = 0;
-                    }
-                }
-                else if (_amdService != null)
-                {
-                    if (_amdService.HasDisplaysAttached())
-                    {
-                        await _amdService.ApplyPresetUi(preset);
-                    }
-                    else
-                    {
-                        attempts--;
-                        if (attempts > 0)
-                        {
-                            await Task.Delay(2000);
-                            await ApplyAmdPresetOnStartup(attempts);
-                        }
-                    }
-                }
-            }
-        }
-
         internal void Save()
         {
             FormUtils.SaveSortState(lvAmdPresets.ListViewItemSorter, _config.AmdPresetsSortState);

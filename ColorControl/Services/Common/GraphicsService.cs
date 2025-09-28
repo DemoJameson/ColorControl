@@ -7,154 +7,342 @@ using NWin32.NativeTypes;
 using Shared.Native;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using static ColorControl.Shared.Native.WinApi;
 
-namespace ColorControl.Services.Common
+namespace ColorControl.Services.Common;
+
+abstract class GraphicsService<T> : ServiceBase<T> where T : PresetBase, new()
 {
-	abstract class GraphicsService<T> : ServiceBase<T> where T : PresetBase, new()
-	{
-		private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+    private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
-		private int _lastSetSDRBrightness = -1;
-		private int _lastReadSDRBrightness = -1;
+    private int _lastSetSDRBrightness = -1;
+    private int _lastReadSDRBrightness = -1;
 
-		public GraphicsService(GlobalContext globalContext) : base(globalContext)
-		{
-		}
+    internal class SafePhysicalMonitorHandle : SafeHandle
+    {
+        public SafePhysicalMonitorHandle(IntPtr handle) : base(IntPtr.Zero, true)
+        {
+            this.handle = handle; // IntPtr.Zero may be a valid handle.
+        }
 
-		~GraphicsService()
-		{
-			Uninitialize();
-		}
+        public override bool IsInvalid => false; // The validity cannot be checked by the handle.
 
-		public abstract bool HasDisplaysAttached(bool reinitialize = false);
+        protected override bool ReleaseHandle()
+        {
+            return true;
+        }
+    }
 
-		public bool SetMode(string displayName, VirtualResolution resolution = null, Rational refreshRate = null, bool updateRegistry = false)
-		{
-			var displayConfig = CCD.GetDisplayConfig(displayName);
+    public GraphicsService(GlobalContext globalContext) : base(globalContext)
+    {
+    }
 
-			if (refreshRate != null)
-			{
-				displayConfig.ApplyRefreshRate = true;
-				displayConfig.RefreshRate = refreshRate;
-			}
+    ~GraphicsService()
+    {
+        Uninitialize();
+    }
 
-			if (resolution != null)
-			{
-				displayConfig.ApplyResolution = true;
-				displayConfig.Resolution = resolution;
-			}
+    public abstract bool HasDisplaysAttached(bool reinitialize = false);
 
-			return SetMode(displayName, displayConfig, updateRegistry);
-		}
+    public bool SetMode(string displayName, VirtualResolution resolution = null, Rational refreshRate = null, bool updateRegistry = false)
+    {
+        var displayConfig = CCD.GetDisplayConfig(displayName);
 
-		public bool SetMode(string displayName, DisplayConfig displayConfig, bool updateRegistry = false)
-		{
-			var currentDisplayConfig = CCD.GetDisplayConfig(displayName);
+        if (refreshRate != null)
+        {
+            displayConfig.ApplyRefreshRate = true;
+            displayConfig.RefreshRate = refreshRate;
+        }
 
-			if (displayConfig.ApplyRefreshRate)
-			{
-				currentDisplayConfig.RefreshRate = displayConfig.RefreshRate;
-			}
+        if (resolution != null)
+        {
+            displayConfig.ApplyResolution = true;
+            displayConfig.Resolution = resolution;
+        }
 
-			if (displayConfig.ApplyResolution)
-			{
-				currentDisplayConfig.Resolution = displayConfig.Resolution;
-			}
+        return SetMode(displayName, displayConfig, updateRegistry);
+    }
 
-			if (displayConfig.Scaling != CCD.DisplayConfigScaling.Zero)
-			{
-				currentDisplayConfig.Scaling = displayConfig.Scaling;
-			}
+    public bool SetMode(string displayName, DisplayConfig displayConfig, bool updateRegistry = false)
+    {
+        var currentDisplayConfig = CCD.GetDisplayConfig(displayName);
 
-			if (displayConfig.Rotation != CCD.DisplayConfigRotation.Zero)
-			{
-				currentDisplayConfig.Rotation = displayConfig.Rotation;
-			}
+        if (displayConfig.ApplyRefreshRate)
+        {
+            currentDisplayConfig.RefreshRate = displayConfig.RefreshRate;
+        }
 
-			return CCD.SetDisplayConfig(displayName, currentDisplayConfig, updateRegistry);
-		}
+        if (displayConfig.ApplyResolution)
+        {
+            currentDisplayConfig.Resolution = displayConfig.Resolution;
+        }
 
-		public void SetSDRBrightness(string displayName, int brightnessPercent)
-		{
-			var hmon = FormUtils.GetMonitorForDisplayName(displayName);
+        if (displayConfig.Scaling != CCD.DisplayConfigScaling.Zero)
+        {
+            currentDisplayConfig.Scaling = displayConfig.Scaling;
+        }
 
-			if (hmon == IntPtr.Zero)
-			{
-				hmon = NativeMethods.MonitorFromWindow(0, 1);
-			}
+        if (displayConfig.Rotation != CCD.DisplayConfigRotation.Zero)
+        {
+            currentDisplayConfig.Rotation = displayConfig.Rotation;
+        }
 
-			var brightness = 1 + (double)brightnessPercent / 20;
+        return CCD.SetDisplayConfig(displayName, currentDisplayConfig, updateRegistry);
+    }
 
-			WinApi.DwmpSDRToHDRBoostPtr(hmon, brightness);
+    public void SetSDRBrightness(string displayName, int brightnessPercent)
+    {
+        var hmon = FormUtils.GetMonitorForDisplayName(displayName);
 
-			_lastSetSDRBrightness = brightnessPercent;
-		}
+        if (hmon == IntPtr.Zero)
+        {
+            hmon = NativeMethods.MonitorFromWindow(0, 1);
+        }
 
-		public int GetSDRBrightness(string displayName)
-		{
-			var whiteLevel = CCD.GetSDRWhiteLevel(displayName);
+        var brightness = 1 + (double)brightnessPercent / 20;
 
-			if (whiteLevel >= 1000)
-			{
-				var newBrightnessPercent = (int)(whiteLevel - 1000) / 50;
+        WinApi.DwmpSDRToHDRBoostPtr(hmon, brightness);
 
-				if (_lastSetSDRBrightness >= 0 && newBrightnessPercent == _lastReadSDRBrightness)
-				{
-					return _lastSetSDRBrightness;
-				}
+        _lastSetSDRBrightness = brightnessPercent;
+    }
 
-				_lastReadSDRBrightness = newBrightnessPercent;
+    public int GetSDRBrightness(string displayName)
+    {
+        var whiteLevel = CCD.GetSDRWhiteLevel(displayName);
 
-				return newBrightnessPercent;
-			}
+        if (whiteLevel >= 1000)
+        {
+            var newBrightnessPercent = (int)(whiteLevel - 1000) / 50;
 
-			return 0;
-		}
+            if (_lastSetSDRBrightness >= 0 && newBrightnessPercent == _lastReadSDRBrightness)
+            {
+                return _lastSetSDRBrightness;
+            }
 
-		protected List<Rational> GetAvailableRefreshRatesV2(string displayName, int horizontal, int vertical)
-		{
-			var dxWrapper = new DXWrapper();
+            _lastReadSDRBrightness = newBrightnessPercent;
 
-			var modes = dxWrapper.GetModes(displayName, (uint)horizontal, (uint)vertical);
+            return newBrightnessPercent;
+        }
 
-			var refreshRates = modes.Select(m => m.RefreshRate).DistinctBy(r => r.ToString())
-				.Select(r => new Rational(r.Numerator, r.Denominator));
+        return 0;
+    }
 
-			return refreshRates.ToList();
-		}
+    protected List<Rational> GetAvailableRefreshRatesV2(string displayName, int horizontal, int vertical)
+    {
+        var dxWrapper = new DXWrapper();
 
-		protected List<VirtualResolution> GetAvailableResolutionsInternalV2(string displayName, Rational refreshRate = null)
-		{
-			var dxWrapper = new DXWrapper();
+        var modes = dxWrapper.GetModes(displayName, (uint)horizontal, (uint)vertical);
 
-			var modes = dxWrapper.GetModes(displayName);
+        var refreshRates = modes.Select(m => m.RefreshRate).DistinctBy(r => r.ToString())
+            .Select(r => new Rational(r.Numerator, r.Denominator));
 
-			var refreshRates = modes.DistinctBy(m => $"{m.Resolution.width}x{m.Resolution.height}")
-				.Select(m => new VirtualResolution(m.Resolution.width, m.Resolution.height));
+        return refreshRates.ToList();
+    }
 
-			return refreshRates.ToList();
-		}
+    protected List<VirtualResolution> GetAvailableResolutionsInternalV2(string displayName, Rational refreshRate = null)
+    {
+        var dxWrapper = new DXWrapper();
 
-		protected bool SetMonitorScaling()
-		{
-			var devMode = new DEVMODEW();
-			devMode.dmSize = (ushort)Marshal.SizeOf<DEVMODEW>();
-			devMode.dmFields = NativeConstants.DM_LOGPIXELS;
-			devMode.dmLogPixels = 96 * 96 / 100;
+        var modes = dxWrapper.GetModes(displayName);
 
-			var ptr = Marshal.AllocHGlobal(Marshal.SizeOf<DEVMODEW>());
+        var refreshRates = modes.DistinctBy(m => $"{m.Resolution.width}x{m.Resolution.height}")
+            .Select(m => new VirtualResolution(m.Resolution.width, m.Resolution.height));
 
-			Marshal.StructureToPtr(devMode, ptr, false);
+        return refreshRates.ToList();
+    }
 
-			if (NativeMethods.ChangeDisplaySettingsExW(null, ptr, 0, 0, 0) == NativeConstants.DISP_CHANGE_SUCCESSFUL)
-			{
-				var result = NativeMethods.SystemParametersInfoW(0x009F, uint.MaxValue - 6, 0, NativeConstants.SPIF_SENDCHANGE | NativeConstants.SPIF_UPDATEINIFILE);
-			}
+    protected bool SetMonitorScaling()
+    {
+        var devMode = new DEVMODEW();
+        devMode.dmSize = (ushort)Marshal.SizeOf<DEVMODEW>();
+        devMode.dmFields = NativeConstants.DM_LOGPIXELS;
+        devMode.dmLogPixels = 96 * 96 / 100;
 
-			return true;
+        var ptr = Marshal.AllocHGlobal(Marshal.SizeOf<DEVMODEW>());
 
-		}
-	}
+        Marshal.StructureToPtr(devMode, ptr, false);
+
+        if (NativeMethods.ChangeDisplaySettingsExW(null, ptr, 0, 0, 0) == NativeConstants.DISP_CHANGE_SUCCESSFUL)
+        {
+            var result = NativeMethods.SystemParametersInfoW(0x009F, uint.MaxValue - 6, 0, NativeConstants.SPIF_SENDCHANGE | NativeConstants.SPIF_UPDATEINIFILE);
+        }
+
+        return true;
+
+    }
+
+    protected static IEnumerable<SafePhysicalMonitorHandle> EnumeratePhysicalMonitors(IntPtr monitorHandle, bool verbose = false)
+    {
+        if (!GetNumberOfPhysicalMonitorsFromHMONITOR(
+            monitorHandle,
+            out uint count))
+        {
+            Debug.WriteLine($"Failed to get the number of physical monitors. {WinError.GetMessage()}");
+            yield break;
+        }
+        if (count == 0)
+        {
+            yield break;
+        }
+
+        var physicalMonitors = new PHYSICAL_MONITOR[count];
+
+        try
+        {
+            if (!GetPhysicalMonitorsFromHMONITOR(
+                monitorHandle,
+                count,
+                physicalMonitors))
+            {
+                Debug.WriteLine($"Failed to get an array of physical monitors. {WinError.GetMessage()}");
+                yield break;
+            }
+
+            int monitorIndex = 0;
+
+            foreach (var physicalMonitor in physicalMonitors)
+            {
+                var handle = new SafePhysicalMonitorHandle(physicalMonitor.hPhysicalMonitor);
+
+                //Debug.WriteLine($"Description: {physicalMonitor.szPhysicalMonitorDescription}");
+                //Debug.WriteLine($"Handle: {physicalMonitor.hPhysicalMonitor}");
+
+                yield return handle;
+
+                monitorIndex++;
+            }
+        }
+        finally
+        {
+            // The physical monitor handles should be destroyed at a later stage.
+        }
+    }
+
+    public static GenericResult<VcpInfo> ReadDDC(string displayName, byte vcpCode)
+    {
+        // Do this via: GetVCPFeatureAndVCPFeatureReply: https://learn.microsoft.com/en-us/windows/win32/api/lowlevelmonitorconfigurationapi/nf-lowlevelmonitorconfigurationapi-getvcpfeatureandvcpfeaturereply
+
+        var handle = GetPhysicalMonitorHandle(displayName);
+
+        if (handle == -1)
+        {
+            return null;
+        }
+
+        try
+        {
+            var result = GetVCPFeatureAndVCPFeatureReply(handle, vcpCode, out var codeType, out var currentValue, out var maxValue);
+
+            if (!result)
+            {
+                var (errorCode, msg) = WinError.GetCodeMessage();
+
+                Logger.Warn("Error while reading VCP code of display: {0}", msg);
+
+                return GenericResult<VcpInfo>.FromError(msg);
+            }
+
+            return GenericResult<VcpInfo>.FromSuccess(new VcpInfo
+            {
+                Value = currentValue,
+                MaxValue = maxValue,
+                CodeType = codeType
+            });
+        }
+        finally
+        {
+            //first.DangerousRelease();
+        }
+    }
+
+    public static async Task<GenericBoolResult> WriteDDC(string displayName, byte vcpCode, uint value, DdcSetting.ValueChangeTypes changeType = DdcSetting.ValueChangeTypes.Fixed, bool validate = true)
+    {
+        var handle = GetPhysicalMonitorHandle(displayName);
+
+        if (handle == -1)
+        {
+            return GenericBoolResult.FromError("No monitor handle");
+        }
+
+        if (changeType != DdcSetting.ValueChangeTypes.Fixed)
+        {
+            var readResult = ReadDDC(displayName, vcpCode);
+            if (!readResult.HasResult)
+            {
+                return GenericBoolResult.FromError("Cannot apply increase or decrease");
+            }
+
+            var currentValue = readResult.Result.Value;
+
+            if (changeType == DdcSetting.ValueChangeTypes.Increase)
+            {
+                value += currentValue;
+
+                if (value > readResult.Result.MaxValue)
+                {
+                    value = readResult.Result.MaxValue;
+                }
+            }
+            else if (changeType == DdcSetting.ValueChangeTypes.Decrease)
+            {
+                if (((int)currentValue - value) < 0)
+                {
+                    value = 0;
+                }
+                else
+                {
+                    value = currentValue - value;
+                }
+            }
+        }
+
+        var result = SetVCPFeature(handle, vcpCode, value);
+
+        if (!result)
+        {
+            var (errorCode, msg) = WinError.GetCodeMessage();
+
+            Logger.Warn("Error while writing VCP code of display: {0}", msg);
+
+            return GenericBoolResult.FromError(msg);
+        }
+
+        if (validate)
+        {
+            await Task.Delay(50);
+
+            var readResult = ReadDDC(displayName, vcpCode);
+            if (readResult.Result?.Value != value)
+            {
+                return GenericBoolResult.FromError("The monitor did not apply the specified value");
+            }
+        }
+
+        return GenericBoolResult.Success;
+    }
+
+    public static nint GetPhysicalMonitorHandle(string displayName)
+    {
+        if (displayName == null)
+        {
+            return -1;
+        }
+
+        var hMonitor = FormUtils.GetMonitorForDisplayName(displayName);
+
+        var physicalHandles = EnumeratePhysicalMonitors(hMonitor);
+
+        var first = physicalHandles.FirstOrDefault();
+
+        if (first == null)
+        {
+            return -1;
+        }
+
+        return first.DangerousGetHandle();
+    }
 }

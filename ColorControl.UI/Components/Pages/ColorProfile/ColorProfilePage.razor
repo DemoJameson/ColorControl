@@ -51,6 +51,16 @@
                             <label class="form-label" for="description">Description</label>
                             <input class="form-control" type="text" id="description" @bind="ColorProfile.Description" />
                         </div>
+                        <div class="mb-2">
+                            <label class="form-label" for="renderingIntent">Rendering intent</label>
+                            <select class="form-select" id="renderingIntent" @bind="ColorProfile.RenderingIntent">
+                                @foreach (var renderingIntent in Enum.GetValues<LittleCms.RenderingIntent>().Where(ri => ri <= LittleCms.RenderingIntent.ABSOLUTE_COLORIMETRIC))
+                                {
+                                    <option value="@renderingIntent">@renderingIntent.GetDescription()</option>
+                                }
+                            </select>
+                        </div>
+
                         <div class="accordion accordion-flush" id="presetAccordion">
 
                             <div class="accordion-item">
@@ -236,21 +246,49 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="row">
-                                                <div class="col">
-                                                    <div class="mb-2">
-                                                        <label class="form-label" for="brightnessBoost">Brightness boost (%)</label>
-                                                        <input class="form-control" id="brightnessBoost" type="number" min="-100" max="100" @bind="ColorProfile.SDRBrightnessBoost" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)"  />
-                                                    </div>
-                                                </div>
-                                                <div class="col">
-                                                    <div class="mb-2">
-                                                        <label class="form-label" for="shadowDetailBoost">Shadow detail boost (%)</label>
-                                                        <input class="form-control" id="shadowDetailBoost" type="number" min="0" max="100" @bind="ColorProfile.ShadowDetailBoost" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.Piecewise || ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
-                                                    </div>
+                                        }
+                                        <div class="row">
+                                            <div class="col">
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="brightnessBoost">Brightness boost (%)</label>
+                                                    <input class="form-control" id="brightnessBoost" type="number" min="-100" max="100" @bind="ColorProfile.SDRBrightnessBoost" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
                                                 </div>
                                             </div>
-
+                                            <div class="col">
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="shadowDetailBoost">Shadow detail boost (%)</label>
+                                                    <input class="form-control" id="shadowDetailBoost" type="number" min="-50" max="200" @bind="ColorProfile.ShadowDetailBoost" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
+                                                </div>
+                                            </div>
+                                            <div class="col">
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="shadowDetailRange">Shadow detail range (%)</label>
+                                                    <input class="form-control" id="shadowDetailRange" type="number" min="0" max="100" @bind="ColorProfile.ShadowDetailRange" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col">
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="redGain">Red gain (%)</label>
+                                                    <input class="form-control" id="redGain" type="number" min="1" max="200" step="0.01" @bind="ColorProfile.RedGain" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
+                                                </div>
+                                            </div>
+                                            <div class="col">
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="greenGain">Green gain (%)</label>
+                                                    <input class="form-control" id="greenGain" type="number" min="1" max="200" step="0.01" @bind="ColorProfile.GreenGain" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
+                                                </div>
+                                            </div>
+                                            <div class="col">
+                                                <div class="mb-2">
+                                                    <label class="form-label" for="blueGain">Blue gain (%)</label>
+                                                    <input class="form-control" id="blueGain" type="number" min="1" max="200" step="0.01" @bind="ColorProfile.BlueGain" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.ToneMappedPiecewise)" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @if (ColorProfile.IsHDRProfile)
+                                        {
                                             <div class="row">
                                                 <div class="col">
                                                     <div class="mb-2">
@@ -276,17 +314,6 @@
                                                     <div class="mb-2">
                                                         <label class="form-label" for="gammamultiplier">Gamma Multiplier</label>
                                                         <input class="form-control" id="gammamultiplier" type="number" min="0.04" max="25" step=".001" @bind="ColorProfile.HdrGammaMultiplier" disabled="@(ColorProfile.SDRTransferFunction != SDRTransferFunction.ToneMappedPiecewise)" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="row">
-                                                <div class="col">
-                                                    <div class="mb-2">
-                                                        <label class="form-label" for="shadowDetailBoost">Shadow detail boost (%)</label>
-                                                        <input class="form-control" id="shadowDetailBoost" type="number" min="0" max="100" @bind="ColorProfile.ShadowDetailBoost" disabled="@(ColorProfile.SDRTransferFunction == SDRTransferFunction.Piecewise)" />
                                                     </div>
                                                 </div>
                                             </div>

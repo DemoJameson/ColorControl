@@ -48,6 +48,9 @@ namespace NvAPIWrapper.Native.Display
         [Description("Display - No Scaling")]
         GPUScanOutToClosest = 7,
 
+        [Description("GPU - Integer Scaling")]
+        GPUIntegerAspectScaling = 8,
+
         /// <summary>
         ///     Customized scaling - For future use
         /// </summary>

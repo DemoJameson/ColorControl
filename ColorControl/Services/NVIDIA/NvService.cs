@@ -36,7 +36,7 @@ using static ColorControl.Shared.Contracts.NVIDIA.NvHdrSettings;
 
 namespace ColorControl.Services.NVIDIA
 {
-    class NvService : GraphicsService<NvPreset>
+    partial class NvService : GraphicsService<NvPreset>
     {
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
@@ -179,6 +179,33 @@ namespace ColorControl.Services.NVIDIA
             _powerEventDispatcher.RegisterAsyncEventHandler(PowerEventDispatcher.Event_Resume, PowerModeResume);
             _powerEventDispatcher.RegisterEventHandler(PowerEventDispatcher.Event_Startup, PowerModeChanged);
             _powerEventDispatcher.RegisterEventHandler(PowerEventDispatcher.Event_Shutdown, PowerModeChanged);
+
+            var _ = ApplyNvPresetOnStartup();
+        }
+
+        private async Task ApplyNvPresetOnStartup()
+        {
+            var startUpParams = _globalContext.StartUpParams;
+
+            var presetIdOrName = !string.IsNullOrEmpty(startUpParams.NvidiaPresetIdOrName) ? startUpParams.NvidiaPresetIdOrName : _globalContext.Config.NvPresetId_ApplyOnStartup.ToString();
+
+            if (string.IsNullOrEmpty(presetIdOrName))
+            {
+                return;
+            }
+
+            var preset = GetPresetByIdOrName(presetIdOrName);
+            if (preset == null)
+            {
+                if (string.IsNullOrEmpty(startUpParams.NvidiaPresetIdOrName))
+                {
+                    _globalContext.Config.NvPresetId_ApplyOnStartup = 0;
+                }
+                return;
+            }
+
+            preset.IsStartupPreset = true;
+            await ApplyPreset(preset);
         }
 
         public override List<string> GetInfo()
@@ -360,15 +387,31 @@ namespace ColorControl.Services.NVIDIA
 
         public override async Task<bool> ApplyPreset(NvPreset preset)
         {
-            var result = true;
+            return (await ApplyPresetWithResult(preset)).Result;
+        }
+
+        public async Task<GenericBoolResult> ApplyPresetWithResult(NvPreset preset)
+        {
+            var result = GenericBoolResult.Success;
 
             var display = await WaitForDisplayAsync(preset);
 
             if (display == null)
             {
-                Logger.Warn($"Cannot apply preset {preset.IdOrName} because the associated display is not active/found");
+                var error = $"Cannot apply preset {preset.IdOrName} because the associated display is not active/found";
 
-                return false;
+                Logger.Warn(error);
+
+                return GenericBoolResult.FromError(error);
+            }
+
+            if (preset.DdcSettings.ApplyDdc)
+            {
+                var ddcResult = await ApplyDdcSettings(display, preset.DdcSettings);
+                if (!ddcResult.Result && ddcResult.ErrorMessages.Count > 0)
+                {
+                    result.AddError(ddcResult.ErrorMessages[0]);
+                }
             }
 
             var hdrEnabled = IsHDREnabled();
@@ -418,7 +461,7 @@ namespace ColorControl.Services.NVIDIA
             {
                 if (!SetMode(preset.DisplayConfig, true))
                 {
-                    result = false;
+                    result.AddError(WinError.GetMessage());
                 }
             }
 
@@ -449,7 +492,7 @@ namespace ColorControl.Services.NVIDIA
             {
                 if (!SetDithering(preset.DitherState, preset: preset))
                 {
-                    result = false;
+                    result.Result = false;
                 }
             }
 
@@ -471,13 +514,15 @@ namespace ColorControl.Services.NVIDIA
 
             if (Config.ShowOverclocking && preset.applyOverclocking)
             {
-                result = ApplyOverclocking(preset.ocSettings);
+                result.Result = ApplyOverclocking(preset.ocSettings);
             }
 
             await ExecuteStepsAsync(preset, _globalContext);
 
             //SetMonitorScaling();
             //CCD.SetScaling(100);
+            //WriteDDC(display);
+            //ReadDDC(display, 0x10);
 
             _lastAppliedPreset = preset;
 
@@ -487,6 +532,45 @@ namespace ColorControl.Services.NVIDIA
             GetDisplayInfos(false);
 
             return result;
+        }
+
+        private async Task<GenericBoolResult> ApplyDdcSettings(Display display, DdcSettings ddcSettings)
+        {
+            foreach (var ddcSetting in ddcSettings.Settings)
+            {
+                var result = await WriteDDC(display.Name, ddcSetting.VcpCode, ddcSetting.Value, ddcSetting.ValueChangeType);
+                if (result.Result != true)
+                {
+                    return result;
+                }
+
+                if (ddcSetting != ddcSettings.Settings.Last())
+                {
+                    await Task.Delay(50);
+                }
+            }
+
+            if (ddcSettings.RemoveOutOfRangeOsd)
+            {
+                var _ = RemoveOutOfRangeOsd(display, ddcSettings.Settings.Count > 0);
+            }
+
+            return GenericBoolResult.Success;
+        }
+
+        private static async Task RemoveOutOfRangeOsd(Display display, bool delay)
+        {
+            if (delay)
+            {
+                await Task.Delay(5000);
+            }
+
+            foreach (var value in Enumerable.Range(0, 16).Reverse())
+            {
+                await WriteDDC(display.Name, 0xCC, (uint)value, validate: false);
+
+                await Task.Delay(180);
+            }
         }
 
         private void SetNovideoSettings(string displayId, NovideoSettings novideoSettings)
@@ -1239,6 +1323,39 @@ namespace ColorControl.Services.NVIDIA
         public void SetColorProfile(Display display, string name)
         {
             CCD.SetDisplayDefaultColorProfile(display.Name, name, _globalContext.Config.SetMinTmlAndMaxTml, IsHDREnabled(display));
+        }
+
+        //public void WriteDDC(Display display, byte vcpCode, uint value)
+        //{
+        //    if (display == null)
+        //    {
+        //        return;
+        //    }
+
+        //    byte i2cDeviceAddr = 0x37;
+
+        //    //short value = 8704;
+
+        //    //var data = new byte[] { 0x84, 0x03, 0x10, 0x00, 0x64, 0xDD };
+        //    //var data = new byte[] { 0x84, 0x03, 0x15, 0x00, 0x2D, 0xDD };
+        //    var value1 = (byte)(value >> 8);
+        //    var value2 = (byte)(value & 0xFF);
+        //    var data = new byte[] { 0x84, 0x03, vcpCode, value1, value2, 0xDD };
+
+        //    I2CInfoV3.FillDDCCIChecksum((byte)(i2cDeviceAddr << 1), [0x51], data);
+
+        //    var info = new I2CInfoV2(display.Output.OutputId, true, i2cDeviceAddr, [0x51], data);
+
+        //    display.DisplayDevice.PhysicalGPU.WriteI2C(info);
+        //}
+
+        public GenericResult<VcpInfo> GetVcpInfo(string displayId, byte vcpCode)
+        {
+            var displays = GetSimpleDisplayInfos();
+
+            var display = displays.FirstOrDefault(d => d.DisplayId == displayId)?.Display;
+
+            return ReadDDC(display?.Name, vcpCode);
         }
 
         public void TestResolution()

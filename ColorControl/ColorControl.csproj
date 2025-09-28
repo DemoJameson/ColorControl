@@ -11,8 +11,8 @@
 		<PublisherName>Maassoft</PublisherName>
 		<Company>Maassoft</Company> 
 		<ApplicationRevision>0</ApplicationRevision>
-		<ApplicationVersion>10.3.0.0</ApplicationVersion>
-		<Version>10.3.0.0</Version>
+		<ApplicationVersion>10.4.0.0</ApplicationVersion>
+		<Version>10.4.0.0</Version>
 		<UseApplicationTrust>false</UseApplicationTrust>
 		<PublishWizardCompleted>true</PublishWizardCompleted>
 		<BootstrapperEnabled>false</BootstrapperEnabled>
@@ -36,6 +36,7 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<PathMap Condition="'$(Configuration)' == 'Release'">$(MSBuildThisFileDirectory)=.\</PathMap>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 	<ItemGroup>
 		<None Remove="Resources\LgRemotes.json" />

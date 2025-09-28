@@ -23,3 +23,7 @@ export function GetElementDimensions(elementId) {
 export function GetElementClassName(elementId) {
     return document.getElementById(elementId).className;
 }
+
+export function NavigateTo(uri, timeout = 0) {
+    setTimeout(() => window.location = uri, timeout);
+}

@@ -54,6 +54,7 @@ public class MHC2Wrapper
 
         return new GenerateProfileCommand
         {
+            RenderingIntent = profile.HeaderRenderingIntent,
             Description = deviceContext.GetDescription(),
             HasExtraInfo = deviceContext.ExtraInfoTag != null,
             IsHDRProfile = isAssociatedAsHdr,
@@ -68,6 +69,10 @@ public class MHC2Wrapper
             SDRTransferFunction = deviceContext.ExtraInfoTag?.SDRTransferFunction ?? SDRTransferFunction.PurePower,
             SDRBrightnessBoost = deviceContext.ExtraInfoTag?.SDRBrightnessBoost ?? 0,
             ShadowDetailBoost = deviceContext.ExtraInfoTag?.ShadowDetailBoost ?? 0,
+            ShadowDetailRange = deviceContext.ExtraInfoTag?.ShadowDetailRange ?? 30,
+            RedGain = deviceContext.ExtraInfoTag?.RedGain ?? 100,
+            GreenGain = deviceContext.ExtraInfoTag?.GreenGain ?? 100,
+            BlueGain = deviceContext.ExtraInfoTag?.BlueGain ?? 100,
             Gamma = deviceContext.ExtraInfoTag?.Gamma ?? 2.2,
             ToneMappingFromLuminance = deviceContext.ExtraInfoTag?.ToneMappingFromLuminance ?? 400,
             ToneMappingToLuminance = deviceContext.ExtraInfoTag?.ToneMappingToLuminance ?? 400,

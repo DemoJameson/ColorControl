@@ -1,10 +1,11 @@
-﻿using System;
+﻿using LittleCms;
 
 namespace MHC2Gen;
 
 public class GenerateProfileCommand
 {
     public string Description { get; set; } = "";
+    public RenderingIntent RenderingIntent { get; set; } = RenderingIntent.PERCEPTUAL;
     public bool HasExtraInfo { get; set; }
     public bool IsHDRProfile { get; set; }
     public RgbPrimaries DevicePrimaries { get; set; } = new RgbPrimaries(RgbPrimaries.sRGB);
@@ -18,6 +19,10 @@ public class GenerateProfileCommand
     public double SDRMaxBrightness { get; set; } = 100;
     public double SDRBrightnessBoost { get; set; }
     public double ShadowDetailBoost { get; set; }
+    public double ShadowDetailRange { get; set; } = 30;
+    public double RedGain { get; set; }
+    public double GreenGain { get; set; }
+    public double BlueGain { get; set; }
     public double Gamma { get; set; } = 2.2;
 
     public double ToneMappingFromLuminance { get; set; }

@@ -1,43 +1,118 @@
 using ColorControl.Shared.Contracts;
 using ColorControl.UI.Services;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using System.Net;
 
 namespace ColorControl.UI;
 
 public static class Blazor
 {
-	public static void Start(Config? config = null)
-	{
-		var builder = WebApplication.CreateBuilder();
+    private static WebApplication? CurrentApplication;
+    private static int Port;
+    private static bool AllowRemoteConnections;
 
-		// Add services to the container.
-		builder.Services.AddRazorComponents()
-			.AddInteractiveServerComponents();
+    public static bool IsRunning(Config config) => CurrentApplication != null && Port == config.UiPort && AllowRemoteConnections == config.UiAllowRemoteConnections;
 
-		builder.Services.AddSingleton<AppState>(new AppState { SelectedTheme = (config?.UseDarkMode ?? true) ? "dark" : "light" });
-		builder.Services.AddTransient<RpcUiClientService>();
-		builder.Services.AddTransient<JSHelper>();
-		builder.Services.AddHttpContextAccessor();
-		builder.Services.AddSingleton<NotificationService>();
-		builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(config?.UiPort > 0 ? config.UiPort : 5000));
+    public static async Task Start(Config config)
+    {
+        if (IsRunning(config))
+        {
+            return;
+        }
 
-		var app = builder.Build();
+        await Stop();
 
-		// Configure the HTTP request pipeline.
-		if (!app.Environment.IsDevelopment())
-		{
-			app.UseExceptionHandler("/Error", createScopeForErrors: true);
-			// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-			app.UseHsts();
-		}
+        var builder = WebApplication.CreateBuilder();
 
-		app.UseHttpsRedirection();
+        // Add services to the container.
+        builder.Services.AddRazorComponents()
+            .AddInteractiveServerComponents();
 
-		app.UseStaticFiles();
-		app.UseAntiforgery();
+        builder.Services.AddSingleton<AppState>(new AppState { SelectedTheme = config.UseDarkMode ? "dark" : "light" });
+        builder.Services.AddTransient<RpcUiClientService>();
+        builder.Services.AddTransient<JSHelper>();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<NotificationService>();
 
-		app.MapRazorComponents<Components.App>()
-			.AddInteractiveServerRenderMode();
+        builder.Services.Configure<HostOptions>(opts => opts.ShutdownTimeout = TimeSpan.FromSeconds(3));
 
-		app.Run();
-	}
+        var listenPort = config.UiPort > 0 ? config.UiPort : 0;
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            if (config.UiAllowRemoteConnections)
+            {
+                options.ListenAnyIP(listenPort);
+            }
+            else
+            {
+                options.Listen(IPAddress.Parse("127.0.0.1"), listenPort);
+            }
+        });
+
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Error", createScopeForErrors: true);
+            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+            app.UseHsts();
+        }
+
+        app.UseHttpsRedirection();
+
+        app.UseStaticFiles();
+        app.UseAntiforgery();
+
+        app.MapRazorComponents<Components.App>()
+            .AddInteractiveServerRenderMode();
+
+        CurrentApplication = app;
+        Port = config.UiPort;
+        AllowRemoteConnections = config.UiAllowRemoteConnections;
+
+        await app.RunAsync();
+    }
+
+    public static async Task Stop()
+    {
+        if (CurrentApplication != null)
+        {
+            await CurrentApplication.StopAsync();
+            CurrentApplication = null;
+        }
+    }
+
+    public static string GetCurrentUrl()
+    {
+        var port = GetCurrentPort();
+
+        return $"http://localhost:{port}";
+    }
+
+    public static int GetCurrentPort()
+    {
+        if (CurrentApplication == null)
+        {
+            return -1;
+        }
+
+        var server = CurrentApplication.Services.GetService<IServer>();
+        var addressFeature = server?.Features.Get<IServerAddressesFeature>();
+
+        if (addressFeature == null)
+        {
+            return -1;
+        }
+
+        foreach (var address in addressFeature.Addresses)
+        {
+            return int.Parse(address.Split(':').Last());
+        }
+
+        return -1;
+    }
+
 }
